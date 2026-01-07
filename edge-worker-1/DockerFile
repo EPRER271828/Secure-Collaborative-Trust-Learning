@@ -1,0 +1,18 @@
+# Use a Python image optimized for size
+FROM python:3.10-slim
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy the requirements file and install dependencies
+# Note: PyTorch is a large dependency
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the model definition and the client code
+COPY cnn_model.py .
+COPY client_main.py .
+COPY data/ /app/data/ # We assume the local dataset is pre-placed here
+
+# Command to run the client when the container starts
+CMD ["python", "client_main.py"]

@@ -1,0 +1,8 @@
+FROM nginx:alpine
+# Clean default configs
+RUN rm /etc/nginx/conf.d/default.conf
+# Inject Zero Trust configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+# Gateway must have access to the CA to verify worker IDs
+COPY ../certs/ /etc/nginx/certs/
+EXPOSE 443

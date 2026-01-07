@@ -1,0 +1,11 @@
+# Core ML Frameworks
+torch
+torchvision # For loading CIFAR-10 data
+numpy
+
+# Communication Framework
+grpcio
+grpcio-tools
+
+# Utility (for basic math/data handling)
+pandas
