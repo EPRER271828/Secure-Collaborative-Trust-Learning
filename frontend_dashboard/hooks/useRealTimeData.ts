@@ -4,27 +4,33 @@ export function useRealTimeData() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    // Connect to the master stream we built in app.py
-    // Replace the hardcoded localhost line with this:
-    // Use process.env for Create React App
-    const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
-    const eventSource = new EventSource(`${API_BASE_URL}/api/stream`);
+    // Priority: 1. Vercel Env Var -> 2. Localhost Fallback
+    const API_BASE_URL = "https://revocative-bigotedly-veronica.ngrok-free.dev";
+    
+    const connectStream = () => {
+      const eventSource = new EventSource(`${API_BASE_URL}/api/stream`);
 
-    eventSource.onmessage = (event) => {
-      try {
-        const parsedData = JSON.parse(event.data);
-        setData(parsedData);
-      } catch (err) {
-        console.error("Failed to parse stream data", err);
-      }
+      eventSource.onmessage = (event) => {
+        try {
+          const parsedData = JSON.parse(event.data);
+          setData(parsedData);
+        } catch (err) {
+          console.error("Failed to parse stream data", err);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error("SSE Connection Error. Attempting to reconnect...", err);
+        eventSource.close();
+        // Reconnect after 3 seconds if the tunnel drops
+        setTimeout(connectStream, 3000);
+      };
+
+      return eventSource;
     };
 
-    eventSource.onerror = (err) => {
-      console.error("SSE Connection Error:", err);
-      eventSource.close();
-    };
-
-    return () => eventSource.close();
+    const es = connectStream();
+    return () => es.close();
   }, []);
 
   return data;

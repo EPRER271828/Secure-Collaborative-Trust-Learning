@@ -21,7 +21,7 @@ export default function Dashboard() {
     activeWorkers: 5,
     trustScore: 98.5,
   })
-
+  console.log("Current API URL:", process.env.REACT_APP_API_URL);
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
