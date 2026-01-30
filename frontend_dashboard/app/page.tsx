@@ -10,6 +10,7 @@ import { FederatedLearning } from "@/components/federated-learning"
 import { BlockchainTrust } from "@/components/blockchain-trust"
 import { SecurityMonitor } from "@/components/security-monitor"
 import { MLMetrics } from "@/components/ml-metrics"
+import { Documents } from "@/components/documents"
 import { HomomorphicEncryption } from "@/components/homomorphic-encryption"
 import { Info } from "@/components/info"
 
@@ -33,7 +34,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-balance bg-background text-primary font-serif">
-                Secure Collaborative Trusted Learning
+                  Cyber-Resilient FL System
                 </h1>
                 <p className="text-sm font-serif bg-background text-foreground">
                   Federated Learning • Zero Trust • Blockchain Verified
@@ -57,13 +58,14 @@ export default function Dashboard() {
       {/* Main Dashboard */}
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 lg:w-auto bg-primary-foreground">
+          <TabsList className="grid w-full grid-cols-9 lg:w-auto bg-primary-foreground">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="workers">Edge Workers</TabsTrigger>
             <TabsTrigger value="federated">FL Training</TabsTrigger>
             <TabsTrigger value="blockchain">Blockchain</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
             <TabsTrigger value="metrics">ML Metrics</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="phe">PHE</TabsTrigger>
             <TabsTrigger value="info" className="px-2 text-xs">
               Info
@@ -93,6 +95,10 @@ export default function Dashboard() {
 
           <TabsContent value="metrics" className="space-y-6">
             <MLMetrics />
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-6">
+            <Documents />
           </TabsContent>
 
           <TabsContent value="phe" className="space-y-6">
