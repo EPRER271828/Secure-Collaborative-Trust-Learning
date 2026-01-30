@@ -2,42 +2,60 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Shield, Server, Database, Lock, Activity, CheckCircle2, Cpu, Network } from "lucide-react"
+import { Shield, Server, Database, Lock, Activity, Network } from "lucide-react"
 import { useState, useEffect } from "react"
+import { useRealTimeData } from "@/hooks/useRealTimeData"
+
+// Types for our dynamic data
+interface Metric {
+  label: string
+  value: string
+  color: string
+}
+
+interface ServiceStatus {
+  name: string
+  status: string
+  uptime: number
+}
+
+const ICON_MAP: Record<string, any> = {
+  "API Gateway": Network,
+  "Parameter Server": Server,
+  "HashiCorp Vault": Lock,
+  "Model Ledger": Shield,
+};
 
 export function SystemOverview() {
-  const [metrics, setMetrics] = useState([
-    { label: "Active Edge Workers", value: "1/5", color: "text-green-500" },
+  // Use the new hook to get the master data stream
+  const liveData = useRealTimeData();
+
+  // Initial placeholder states
+  const [metrics, setMetrics] = useState<Metric[]>([
+    { label: "Active Edge Workers", value: "0/5", color: "text-green-500" },
     { label: "FL Rounds Completed", value: "...", color: "text-blue-500" },
     { label: "Models Verified", value: "...", color: "text-purple-500" },
     { label: "Trust Score", value: "100%", color: "text-emerald-500" },
   ])
 
-  // Fetch Logic
-  useEffect(() => {
-    const fetchData = async () => {
-        try {
-            const res = await fetch("http://localhost:5000/api/system-overview")
-            if (res.ok) {
-                const data = await res.json()
-                if (data.metrics) setMetrics(data.metrics)
-            }
-        } catch (e) {
-            console.log("Waiting for backend...")
-        }
-    }
-    fetchData()
-    const interval = setInterval(fetchData, 3000)
-    return () => clearInterval(interval)
-  }, [])
+  const [services, setServices] = useState<ServiceStatus[]>([
+    { name: "API Gateway", status: "initializing", uptime: 0 },
+    { name: "Parameter Server", status: "initializing", uptime: 0 },
+    { name: "HashiCorp Vault", status: "initializing", uptime: 0 },
+    { name: "Model Ledger", status: "initializing", uptime: 0 },
+  ])
 
-  // Static Service List (Can be dynamic later)
-  const services = [
-    { name: "API Gateway", status: "running", uptime: 99.9, icon: Network },
-    { name: "Parameter Server", status: "running", uptime: 99.8, icon: Server },
-    { name: "HashiCorp Vault", status: "running", uptime: 99.9, icon: Lock },
-    { name: "Model Ledger", status: "running", uptime: 100, icon: Shield },
-  ]
+  // Update local state whenever the live stream pushes new data
+  useEffect(() => {
+    if (liveData?.overview) {
+      if (liveData.overview.metrics) {
+        setMetrics(liveData.overview.metrics);
+      }
+      if (liveData.overview.services) {
+        setServices(liveData.overview.services);
+      }
+    }
+  }, [liveData]);
 
   return (
     <div className="space-y-6">
@@ -64,7 +82,7 @@ export function SystemOverview() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {services.map((service, index) => {
-              const Icon = service.icon
+              const Icon = ICON_MAP[service.name] || Activity
               return (
                 <div key={index} className="flex items-center justify-between p-4 border border-border rounded-lg">
                   <div className="flex items-center gap-3">
@@ -74,9 +92,14 @@ export function SystemOverview() {
                       <p className="text-xs text-muted-foreground">Uptime: {service.uptime}%</p>
                     </div>
                   </div>
-                  <Badge variant="default" className="border-green-500 text-primary-foreground bg-card">
+                  <Badge 
+                    variant="default" 
+                    className={`bg-card text-primary-foreground ${
+                      service.status === 'running' ? 'border-green-500' : 'border-yellow-500'
+                    }`}
+                  >
                     <Activity className="h-3 w-3 mr-1" />
-                    Running
+                    {service.status.toUpperCase()}
                   </Badge>
                 </div>
               )

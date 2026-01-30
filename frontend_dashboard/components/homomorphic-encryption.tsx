@@ -2,19 +2,82 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Lock, Plus, Minus, X, CheckCircle2, Loader2 } from "lucide-react"
-import { useState } from "react"
+import { Lock, Plus, Minus, X, CheckCircle2, Loader2, RefreshCw } from "lucide-react"
+import { useState, useEffect } from "react"
+
+// Types for the API response
+interface PheMetrics {
+  scheme: string
+  keySize: string
+  totalOperations: number
+  securityLevel: string
+}
+
+interface ComputeResult {
+  result_hex: string
+  time_taken: string
+  operation: string
+}
 
 export function HomomorphicEncryption() {
   const [computing, setComputing] = useState(false)
+  const [metrics, setMetrics] = useState<PheMetrics>({
+    scheme: "Paillier",
+    keySize: "2048 bits",
+    totalOperations: 0,
+    securityLevel: "High"
+  })
+  
+  // Store the result of the last computation
+  const [lastResult, setLastResult] = useState<ComputeResult | null>(null)
 
-  const performEncryptedComputation = () => {
+  // 1. FETCH METRICS
+  const fetchMetrics = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/phe-metrics")
+      if (res.ok) {
+        const data = await res.json()
+        setMetrics(data)
+      }
+    } catch (e) {
+      console.error("PHE Metrics offline")
+    }
+  }
+
+  useEffect(() => {
+    fetchMetrics()
+    const interval = setInterval(fetchMetrics, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // 2. PERFORM COMPUTATION (Calls the Python Backend)
+  const performEncryptedComputation = async (operation: "add" | "mul" | "sub") => {
     setComputing(true)
-    setTimeout(() => setComputing(false), 2000)
+    setLastResult(null) // Reset previous result
+    
+    try {
+      const res = await fetch("http://localhost:5000/api/phe/compute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operation, val_a: 25, val_b: 17 })
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        setLastResult(data)
+        // Refresh metrics immediately to show the operation count go up
+        fetchMetrics()
+      }
+    } catch (e) {
+      console.error("Computation failed")
+    } finally {
+      setComputing(false)
+    }
   }
 
   return (
     <div className="space-y-6">
+      {/* Metrics Cards */}
       <Card>
         <CardHeader>
           <CardTitle>Homomorphic Encryption (PHE)</CardTitle>
@@ -27,26 +90,27 @@ export function HomomorphicEncryption() {
                 <span className="text-sm text-muted-foreground">Encryption Scheme</span>
                 <Lock className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-xl font-bold">Paillier</div>
+              <div className="text-xl font-bold">{metrics.scheme}</div>
             </div>
             <div className="p-4 border border-border rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">Key Size</span>
                 <Lock className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="text-xl font-bold">2048 bits</div>
+              <div className="text-xl font-bold">{metrics.keySize}</div>
             </div>
             <div className="p-4 border border-border rounded-lg">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-muted-foreground">Operations</span>
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
               </div>
-              <div className="text-xl font-bold">1,284</div>
+              <div className="text-xl font-bold">{metrics.totalOperations.toLocaleString()}</div>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Interactive Demo */}
       <Card>
         <CardHeader>
           <CardTitle>PHE Demo - Encrypted Computation</CardTitle>
@@ -71,8 +135,8 @@ export function HomomorphicEncryption() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
                 <Button
                   variant="outline"
-                  className="gap-2 bg-transparent"
-                  onClick={performEncryptedComputation}
+                  className="gap-2 bg-transparent hover:bg-green-500/10 hover:border-green-500"
+                  onClick={() => performEncryptedComputation("add")}
                   disabled={computing}
                 >
                   {computing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
@@ -80,33 +144,38 @@ export function HomomorphicEncryption() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="gap-2 bg-transparent"
-                  onClick={performEncryptedComputation}
+                  className="gap-2 bg-transparent hover:bg-blue-500/10 hover:border-blue-500"
+                  onClick={() => performEncryptedComputation("mul")}
                   disabled={computing}
                 >
                   {computing ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                  Multiply Encrypted
+                  Multiply (Scalar)
                 </Button>
                 <Button
                   variant="outline"
-                  className="gap-2 bg-transparent"
-                  onClick={performEncryptedComputation}
+                  className="gap-2 bg-transparent hover:bg-red-500/10 hover:border-red-500"
+                  onClick={() => performEncryptedComputation("sub")}
                   disabled={computing}
                 >
                   {computing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Minus className="h-4 w-4" />}
-                  Aggregate
+                  Subtract Encrypted
                 </Button>
               </div>
 
-              {!computing && (
-                <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span className="font-semibold">Result (still encrypted):</span>
+              {lastResult && (
+                <div className="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg animate-in fade-in zoom-in duration-300">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        <span className="font-semibold">Result (still encrypted):</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{lastResult.time_taken}</span>
                   </div>
-                  <code className="text-sm font-mono text-foreground">Enc(42) = 0x7f3a9d2e...8b4c1f6a</code>
-                  <p className="text-xs mt-2 text-slate-50 text-slate-50">
-                    Computation performed without ever decrypting the data
+                  <code className="text-xs md:text-sm font-mono text-foreground break-all block p-2 bg-background/50 rounded border border-border">
+                    {lastResult.result_hex}
+                  </code>
+                  <p className="text-xs mt-2 text-muted-foreground">
+                    Computation performed without ever decrypting the data.
                   </p>
                 </div>
               )}
@@ -115,6 +184,7 @@ export function HomomorphicEncryption() {
         </CardContent>
       </Card>
 
+      {/* Explainer Cards */}
       <Card>
         <CardHeader>
           <CardTitle>PHE in Federated Learning</CardTitle>
